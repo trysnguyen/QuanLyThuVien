@@ -16,8 +16,8 @@ public class AdminFrame extends JFrame {
     private JTable Ordertable, Booktable;
     private DefaultTableModel Ordermodel, Bookmodel;
     private JButton SearchB, AcceptB, RefuseB, DeleteB, AddB;
-    private JLabel nameL, authorL, cateL, quantityL;
-    private JTextField nameF, authorF, cateF, SearchF, quantityF;
+    private JLabel nameL, authorL, cateL, quantityL, idL;
+    private JTextField nameF, authorF, cateF, SearchF, quantityF, idF;
     private int clickCount = 0;
     private static final int DOUBLE_CLICK_THRESHOLD = 500;
     private static Timer resetTimer;
@@ -26,7 +26,7 @@ public class AdminFrame extends JFrame {
 
     public AdminFrame() {
         setTitle("Admin");
-        setSize(1000, 700);
+        setSize(1200, 700);
         setLocationRelativeTo(null);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
@@ -38,7 +38,7 @@ public class AdminFrame extends JFrame {
 
         Rpanel = new JPanel(new GridBagLayout());
 
-        JLabel SearchL = new JLabel("Search Bookname");
+        JLabel SearchL = new JLabel("Search Book (Name/Author/Category): ");
         gbc.gridx = 0;
         gbc.gridy = 0;
         Rpanel.add(SearchL, gbc);
@@ -48,7 +48,7 @@ public class AdminFrame extends JFrame {
         gbc.gridy = 0;
         Rpanel.add(SearchF, gbc);
 
-        String[] column = {"Numerical Order", "Bookname", "Author", "Category", "Quantity"};
+        String[] column = {"BookID", "Bookname", "Author", "Category", "Quantity"};
         Bookmodel = new DefaultTableModel(column, 0);
         Booktable = new JTable(Bookmodel);
         JScrollPane scrollPane = new JScrollPane(Booktable);
@@ -58,66 +58,77 @@ public class AdminFrame extends JFrame {
         gbc.gridheight = 1;
         Rpanel.add(scrollPane, gbc);
 
-        nameL = new JLabel("Bookname");
+        idL = new JLabel("Book ID");
         gbc.gridx = 0;
         gbc.gridy = 3;
+        gbc.anchor = GridBagConstraints.WEST;
+        Rpanel.add(idL, gbc);
+        idF = new JTextField(20);
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.anchor = GridBagConstraints.CENTER;
+        Rpanel.add(idF, gbc);
+
+        nameL = new JLabel("Bookname");
+        gbc.gridx = 0;
+        gbc.gridy = 4;
         gbc.anchor = GridBagConstraints.WEST;
         Rpanel.add(nameL, gbc);
         nameF = new JTextField(20);
         gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = 4;
         gbc.anchor = GridBagConstraints.CENTER;
         Rpanel.add(nameF, gbc);
 
         authorL = new JLabel("Author");
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 5;
         gbc.anchor = GridBagConstraints.WEST;
         Rpanel.add(authorL, gbc);
         authorF = new JTextField(20);
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 5;
         gbc.anchor = GridBagConstraints.CENTER;
         Rpanel.add(authorF, gbc);
 
         cateL = new JLabel("Category");
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = 6;
         gbc.anchor = GridBagConstraints.WEST;
         Rpanel.add(cateL, gbc);
         cateF = new JTextField(20);
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = 6;
         gbc.anchor = GridBagConstraints.CENTER;
         Rpanel.add(cateF, gbc);
 
         quantityL = new JLabel("Quantity");
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 7;
         gbc.anchor = GridBagConstraints.WEST;
         Rpanel.add(quantityL, gbc);
 
         quantityF = new JTextField(20);
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 7;
         gbc.anchor = GridBagConstraints.CENTER;
         Rpanel.add(quantityF, gbc);
 
-        SearchB = new JButton("Search Bookname");
+        SearchB = new JButton("Search Book");
         gbc.gridx = 0;
-        gbc.gridy = 7;
+        gbc.gridy = 8;
         gbc.anchor = GridBagConstraints.WEST;
         Rpanel.add(SearchB, gbc);
 
         AddB = new JButton("Add Book");
         gbc.gridx = 0;
-        gbc.gridy = 7;
+        gbc.gridy = 8;
         gbc.anchor = GridBagConstraints.CENTER;
         Rpanel.add(AddB, gbc);
 
         DeleteB = new JButton("Delete Book");
         gbc.gridx = 0;
-        gbc.gridy = 7;
+        gbc.gridy = 8;
         gbc.anchor = GridBagConstraints.EAST;
         Rpanel.add(DeleteB, gbc);
 
@@ -269,33 +280,38 @@ public class AdminFrame extends JFrame {
     }
 
     private void Searchbook() {
-        String book = SearchF.getText().trim();
+        String keyword = SearchF.getText().trim();
 
-        if (book.isEmpty()) {
+        if (keyword.isEmpty()) {
             Bookmodel.setRowCount(0);
             loadingbook();
             return;
         }
 
-        String[] searchWords = book.split("\\s+");
+        String[] searchWords = keyword.split("\\s+");
 
         StringBuilder sqlBuilder = new StringBuilder("SELECT * FROM book WHERE ");
         for (int i = 0; i < searchWords.length; i++) {
             if (i > 0) {
                 sqlBuilder.append(" AND ");
             }
-            sqlBuilder.append("Bookname LIKE ?");
+            sqlBuilder.append("(");
+            sqlBuilder.append("Bookname LIKE ? OR Author LIKE ? OR Category LIKE ?");
+            sqlBuilder.append(")");
         }
+
         try {
             Connection con = DatabaseConnection.getConnection();
             PreparedStatement ps = con.prepareStatement(sqlBuilder.toString());
 
             for (int i = 0; i < searchWords.length; i++) {
-                ps.setString(i + 1, "%" + searchWords[i] + "%");
+                String word = "%" + searchWords[i] + "%";
+                ps.setString(i * 3 + 1, word); // Bookname
+                ps.setString(i * 3 + 2, word); // Author
+                ps.setString(i * 3 + 3, word); // Category
             }
 
             ResultSet rs = ps.executeQuery();
-
             Bookmodel.setRowCount(0);
 
             while (rs.next()) {
@@ -303,8 +319,10 @@ public class AdminFrame extends JFrame {
                 String bookname = rs.getString("Bookname");
                 String author = rs.getString("Author");
                 String category = rs.getString("Category");
-                Bookmodel.addRow(new Object[]{bookID, bookname, author, category});
+                int quantity = rs.getInt("Quantity");
+                Bookmodel.addRow(new Object[]{bookID, bookname, author, category, quantity});
             }
+
         } catch (SQLException e) {
             e.printStackTrace();
             JOptionPane.showMessageDialog(this, "Error while searching for the book.");
@@ -316,7 +334,7 @@ public class AdminFrame extends JFrame {
         String author = authorF.getText();
         String cate = cateF.getText();
         int quantity = Integer.parseInt(quantityF.getText());
-        int id = Bookmodel.getRowCount() + 1;
+        int id = Integer.parseInt(idF.getText().trim());
 
         try {
             Connection con = DatabaseConnection.getConnection();
